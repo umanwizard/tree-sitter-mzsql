@@ -40,4 +40,5 @@ int main(int argc, char *argv[]) {
         assert(test_scan_operator("++--@+", "+"));        
         assert(test_scan_operator("@++-+foo", "@++-+"));
         assert(test_scan_operator("++@-+--foo", "++@-+"));
+        assert(test_scan_operator("@", "@"));
 }

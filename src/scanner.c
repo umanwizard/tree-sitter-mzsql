@@ -1,5 +1,6 @@
 #include <tree_sitter/parser.h>
 #include <string.h>
+#include <stdio.h>
 
 enum TokenType { OP };
 
@@ -21,10 +22,22 @@ void tree_sitter_mzsql_external_scanner_deserialize(void *payload,
 
 bool scan_operator(int (*lookahead)(void *), void (*accept)(void *),
                           void (*advance)(void *), void *state) {
+        // skip ws
+        for (;;) {
+                int next = (lookahead)(state);
+                if (next == ' ' || next == '\t' || next == '\r' || next == '\n') {
+                        (accept)(state);
+                        (advance)(state);
+                }
+                else {
+                        break;
+                }
+        }
         char last = 0;
         int matched = 0;
         int advanced = 0;
         bool any_special = false;
+
         for (;;) {
                 int next = (lookahead)(state);
                 // All op symbols are ASCII
