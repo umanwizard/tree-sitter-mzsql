@@ -22,17 +22,6 @@ void tree_sitter_mzsql_external_scanner_deserialize(void *payload,
 
 bool scan_operator(int (*lookahead)(void *), void (*accept)(void *),
                           void (*advance)(void *), void *state) {
-        // skip ws
-        for (;;) {
-                int next = (lookahead)(state);
-                if (next == ' ' || next == '\t' || next == '\r' || next == '\n') {
-                        (accept)(state);
-                        (advance)(state);
-                }
-                else {
-                        break;
-                }
-        }
         char last = 0;
         int matched = 0;
         int advanced = 0;
@@ -82,6 +71,17 @@ bool tree_sitter_mzsql_external_scanner_scan(void *payload, TSLexer *lexer,
                                               const bool *valid_symbols) {
         if (!valid_symbols[OP])
                 return false;
+        // skip ws
+        for (;;) {
+                int next = lexer->lookahead;
+                if (next == ' ' || next == '\t' || next == '\r' || next == '\n') {
+                        (lexer->mark_end)(lexer);
+                        (lexer->advance)(lexer, true);
+                }
+                else {
+                        break;
+                }
+        }
         return scan_operator(get_lookahead, mark_end, advance_non_whitespace, lexer);
 }
 
