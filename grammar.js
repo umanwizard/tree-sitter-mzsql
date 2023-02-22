@@ -17,6 +17,11 @@ const PREC = {
 
 module.exports = grammar({
   name: 'mzsql',
+  extras: $ => [
+    /[ \t\r\n]/,
+    $.line_comment,
+    $.block_comment,
+  ],
   externals: $ => [
     $.op
   ],
@@ -49,6 +54,12 @@ module.exports = grammar({
       $.deallocate,
       $.raise,
       seq('(', $.query, ')'),
+    ),
+    line_comment: $ => seq("--", /[^\r\n]*/),
+    block_comment: $ => seq(
+      "/*",
+      repeat(choice(/./, $.block_comment)),
+      "*/"
     ),
     query: $ => seq(
       optional($.ctes),
