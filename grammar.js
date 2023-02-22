@@ -21,10 +21,39 @@ module.exports = grammar({
     $.op
   ],
   rules: {
+    source_file: $ => sepBy(';', optional($.statement)),
+    statement: $ => choice(
+      seq($.query, optional($.as_of)),
+      $.create,
+      $.discard,
+      $.drop,
+      $.delete,
+      $.insert,
+      $.update,
+      $.alter,
+      $.copy,
+      $.set,
+      $.reset,
+      $.show,
+      $.start,
+      $.begin,
+      $.commit,
+      $.rollback,
+      $.subscribe,
+      $.explain,
+      $.declare,
+      $.fetch,
+      $.close,
+      $.prepare,
+      $.execute,
+      $.deallocate,
+      $.raise,
+      seq('(', $.query, ')'),
+    ),
     query: $ => seq(
       optional($.ctes),
       $.body,
-      $.query_tail,
+      optional($.query_tail),
     ),
     body: $ => choice(
       $.select,
@@ -100,10 +129,11 @@ module.exports = grammar({
       sepBy(",", $.identifier),
       ")",
     ),
-    identifier: $ => choice(
-      /"[^"]+"/,
-      /[A-Za-z0-9$_\x80-]+/,
-    ),
+    // TODO: quoted IDs and arbitrary unicode
+    identifier: $ => // choice(
+      // /"[^"]+"/,
+      /[A-Za-z_][A-Za-z_0-9]*/,
+//    ),
     expr: $ => choice(
       $.regular_binary_operator,
       prec(PREC.Is, $.is),
@@ -166,7 +196,7 @@ module.exports = grammar({
       $.string,
       $.hex_string,
     ),
-    number: $ => /[0-9]*((e|E)(\+|-)[0-9]*)?/,
+    number: $ => /[0-9]+((e|E)(\+|-)[0-9]+)?/,
     // Quoth Nikhil:
     // 
     // > Adjacent string literals that are separated by whitespace are
@@ -203,10 +233,10 @@ module.exports = grammar({
     normal_binary_operator: $ => choice(
       prec.left(PREC.Cmp, seq($.expr, $.cmp_op, $.expr)),
       prec.left(PREC.PlusMinus, seq($.expr, /\+|-/, $.expr)),
-      prec.left(PREC.MultiplyDivide, seq($.expr, /\/|%/, $.expr)),
+      prec.left(PREC.MultiplyDivide, seq($.expr, /\/|%|\*/, $.expr)),
       prec.left(PREC.Other, seq($.expr, $.op, $.expr)),
     ),
-    cmp_op: $ => /<|<=|<>|!=|>|>=/,
+    cmp_op: $ => /<|<=|<>|!=|>|>=|=/,
     any_ish: $ => "FAIL!any_ish",
     select_option: $ => "FAIL!select_option",
     distinct: $ => "FAIL!distinct",
@@ -237,35 +267,6 @@ module.exports = grammar({
     execute: $ => "FAIL!execute",
     deallocate: $ => "FAIL!deallocate",
     raise: $ => "FAIL!raise",
-    statement: $ => choice(
-      seq($.query, optional($.as_of)),
-      $.create,
-      $.discard,
-      $.drop,
-      $.delete,
-      $.insert,
-      $.update,
-      $.alter,
-      $.copy,
-      $.set,
-      $.reset,
-      $.show,
-      $.start,
-      $.begin,
-      $.commit,
-      $.rollback,
-      $.subscribe,
-      $.explain,
-      $.declare,
-      $.fetch,
-      $.close,
-      $.prepare,
-      $.execute,
-      $.deallocate,
-      $.raise,
-      seq('(', $.query, ')'),
-    ),
-    source_file: $ => seq(sepBy(';', optional($.statement)), optional(';'))
   }
 });
 
