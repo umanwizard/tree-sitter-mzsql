@@ -58,7 +58,7 @@ module.exports = grammar({
     line_comment: $ => seq("--", /[^\r\n]*/),
     block_comment: $ => seq(
       "/*",
-      repeat(choice(/./, $.block_comment)),
+      repeat(/.|\n|\r/),
       "*/"
     ),
     query: $ => seq(
@@ -89,9 +89,13 @@ module.exports = grammar({
     ),
     select_item: $ => choice(
       field("wildcard", "*"),
-      seq($.expr, optional($.alias))
+      seq($.expr, optional($.column_alias))
     ),
-    alias: $ => "FAIL!alias",
+    // TODO - kw reservation, don't accept `AS OF`
+    column_alias: $ => seq(
+      optional("AS"),
+      $.identifier,
+    ),
     table_and_joins: $ => seq(
       $.table_factor,
       repeat($.join),
@@ -127,7 +131,11 @@ module.exports = grammar({
     non_lateral_derived_table_factor: $ => "FAIL!non_lateral_derived_table_factor",
     rows_from: $ => "FAIL!rows_from",
     table_factor_args: $ => "FAIL!table_factor_args",
-    table_alias: $ => "FAIL!table_alias",
+    // TODO -- This should check for keyword reservation
+    table_alias: $ => seq(
+      optional("AS"),
+      $.bare_table_alias,
+    ),
     lateral_factor: $ => "FAIL!lateral_factor",
     join_constraint: $ => choice(
       seq("ON", $.expr),
@@ -162,7 +170,7 @@ module.exports = grammar({
     is: $ => "FAIL!is",
     is_null: $ => "FAIL!is_null",
     like_ish: $ => "FAIL!like_ish",
-    and: $ => "FAIL!and",
+    and: $ => seq($.expr, "AND", $.expr),
     or: $ => "FAIL!or",
     at: $ => "FAIL!at",
     collate: $ => "FAIL!collate",
@@ -252,7 +260,27 @@ module.exports = grammar({
     select_option: $ => "FAIL!select_option",
     distinct: $ => "FAIL!distinct",
     query_tail: $ => "FAIL!query_tail",
-    ctes: $ => "FAIL!ctes",
+    ctes: $ => seq(
+      "WITH",
+      choice(
+        field("WMR", seq("MUTUALLY", "RECURSIVE", sepBy(",", $.mut_rec_cte))),
+        sepBy(",", $.cte),
+      )
+    ),
+    cte: $ => seq(
+      $.bare_table_alias,
+      "AS",
+      "(",
+      $.query,
+      ")",
+    ),
+    // A table alias that can't be preceded by `AS`
+    // and that doesn't check for keyword reservation
+    bare_table_alias: $ => seq(
+      $.identifier,
+      optional($.parenthesized_column_list),
+    ),
+    mut_rec_cte: $ => "FAIL!mut_rec_cte",
     as_of: $ => "FAIL!as_of",
     create: $ => "FAIL!create",
     discard: $ => "FAIL!discard",
