@@ -169,9 +169,19 @@ module.exports = grammar({
       $.or,
       $.at,
       $.collate,
-      $.subscript,
+      $.subscript_expr,
       $.pg_cast,
       $.access,
+    ),
+    subscript_expr: $ => prec.left(PREC.PostfixSubscriptCast, seq(
+      $._expr,
+      $._subscript,
+    )),
+    _subscript: $ => seq(
+      "[",
+      field("start", optional($._expr)),
+      field("end", optional(seq(":", $._expr))),
+      "]",
     ),
     is: $ => "FAIL!is",
     is_null: $ => "FAIL!is_null",
@@ -180,7 +190,6 @@ module.exports = grammar({
     or: $ => "FAIL!or",
     at: $ => "FAIL!at",
     collate: $ => "FAIL!collate",
-    subscript: $ => "FAIL!subscript",
     pg_cast: $ => "FAIL!pg_cast",
     access: $ => "FAIL!access",
     _prefix_expr: $ => choice(
