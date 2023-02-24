@@ -23,7 +23,10 @@ module.exports = grammar({
     $.block_comment,
   ],
   externals: $ => [
-    $.op
+    $.cmp_op,
+    $.pm_op,
+    $.md_op,
+    $.other_op,
   ],
   rules: {
     source_file: $ => sepBy(';', optional($.statement)),
@@ -154,6 +157,10 @@ module.exports = grammar({
       /[A-Za-z_][A-Za-z_0-9]*/,
 //    ),
     _expr: $ => choice(
+      $.bin_expr,
+      $._prefix_expr,
+    ),
+    bin_expr: $ => choice(
       $._regular_binary_operator,
       $.is,
       $.is_null,
@@ -165,7 +172,6 @@ module.exports = grammar({
       $.subscript,
       $.pg_cast,
       $.access,
-      $._prefix_expr,
     ),
     is: $ => "FAIL!is",
     is_null: $ => "FAIL!is_null",
@@ -197,7 +203,7 @@ module.exports = grammar({
       field("unary_minus", prec(PREC.Override, seq("-", $._expr))),
       field("unary_plus", prec(PREC.Override, seq("+", $._expr))),
       field("unary_bitwise_not", prec(PREC.Override, seq("~", $._expr))),
-      $.value,
+      $._value,
       $.parameter,
       $.parenthesized_expr,
     ),
@@ -206,7 +212,7 @@ module.exports = grammar({
     parenthesized_expr: $ => seq(
       "(", choice($._expr, $.query), ")"
     ),
-    value: $ => choice(
+    _value: $ => choice(
       "TRUE", "FALSE", "NULL",
       kwRule("INTERVAL", $.interval_value),
       // TODO - do we need unary +/- here,
@@ -251,9 +257,9 @@ module.exports = grammar({
     ),
     _normal_binary_operator: $ => choice(
       prec.left(PREC.Cmp, seq($._expr, $.cmp_op, $._expr)),
-      prec.left(PREC.PlusMinus, seq($._expr, /\+|-/, $._expr)),
-      prec.left(PREC.MultiplyDivide, seq($._expr, /\/|%|\*/, $._expr)),
-      prec.left(PREC.Other, seq($._expr, $.op, $._expr)),
+      prec.left(PREC.PlusMinus, seq($._expr, $.pm_op, $._expr)),
+      prec.left(PREC.MultiplyDivide, seq($._expr, $.md_op, $._expr)),
+      prec.left(PREC.Other, seq($._expr, $.other_op, $._expr)),
     ),
     cmp_op: $ => /<|<=|<>|!=|>|>=|=/,
     any_ish: $ => "FAIL!any_ish",

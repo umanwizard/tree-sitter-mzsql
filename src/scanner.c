@@ -1,8 +1,9 @@
 #include <tree_sitter/parser.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
-enum TokenType { OP };
+enum TokenType { CMP_OP, PM_OP, MD_OP, OTHER_OP };
 
 const char *OP_CHARS = "+-*/<>=~!@#%^&|`?";
 const char *OP_SPECIALS = "~!@#%^&|`?";
@@ -20,12 +21,34 @@ void tree_sitter_mzsql_external_scanner_deserialize(void *payload,
                                                     const char *buffer,
                                                     unsigned length) {}
 
+// Whether the two given characters represent at comparison operator.
+// If `last` is 0, only `next` is considered.
+static bool is_cmp(int last, int next) {
+        //     cmp_op: $ => /<|<=|<>|!=|>|>=|=/,
+        if (last >= 128 || next >= 128)
+                return false;
+        char lc = last, nc = next;
+        if (!lc) {
+               return nc ==  '<'
+                       || nc == '>'
+                       || nc == '=';
+        }
+        char arr[3] = {lc,nc,0};
+        return !(strcmp(arr, "<=")
+                 && strcmp(arr, "<>")
+                 && strcmp(arr, "!=")
+                 && strcmp(arr, ">="));
+}
+
 bool scan_operator(int (*lookahead)(void *), void (*accept)(void *),
-                          void (*advance)(void *), void *state) {
+                   void (*advance)(void *), void *state, enum TokenType *tt_out) {
         char last = 0;
         int matched = 0;
         int advanced = 0;
         bool any_special = false;
+        bool maybe_cmp = false;
+        bool maybe_pm = false;
+        bool maybe_md = false;
 
         for (;;) {
                 int next = (lookahead)(state);
@@ -41,15 +64,31 @@ bool scan_operator(int (*lookahead)(void *), void (*accept)(void *),
                         (accept)(state);
                         matched = advanced;
                 }                
-                last = next;
                 if (is_next_valid) {
                         (advance)(state);
                         ++advanced;
-                }
+                }                
                 else
                         break;
+                maybe_cmp = is_cmp(last, next);
+                maybe_pm = next == '+' || next == '-';
+                maybe_md = next == '*' || next == '/' || next == '%';
+
+                last = next;
         }
-        return (matched > 0);  
+        if (matched > 0) {
+                assert(tt_out);
+                if (matched <= 2 && maybe_cmp)
+                        *tt_out = CMP_OP;
+                else if (matched == 1 && maybe_pm)
+                        *tt_out = PM_OP;
+                else if (matched == 1 && maybe_md)
+                        *tt_out = MD_OP;
+                else
+                        *tt_out = OTHER_OP;                
+                return true;
+        }
+        return false;
 }
 
 static void advance_non_whitespace(void *state) {
@@ -69,8 +108,6 @@ static void mark_end(void *state) {
 
 bool tree_sitter_mzsql_external_scanner_scan(void *payload, TSLexer *lexer,
                                               const bool *valid_symbols) {
-        if (!valid_symbols[OP])
-                return false;
         // skip ws
         for (;;) {
                 int next = lexer->lookahead;
@@ -82,6 +119,12 @@ bool tree_sitter_mzsql_external_scanner_scan(void *payload, TSLexer *lexer,
                         break;
                 }
         }
-        return scan_operator(get_lookahead, mark_end, advance_non_whitespace, lexer);
+        enum TokenType tt;
+        bool result = scan_operator(get_lookahead, mark_end, advance_non_whitespace, lexer, &tt);
+        if (result && valid_symbols[tt]) {
+                lexer->result_symbol = tt;
+                return true;
+        }
+        return false;
 }
 
