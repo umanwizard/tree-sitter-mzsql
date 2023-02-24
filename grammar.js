@@ -200,6 +200,7 @@ module.exports = grammar({
       field("position", seq("POSITION", "(", $.position_special_form, ")")),
       kwRule("SUBSTRING", $.substring),
       $.qualified_id,
+      $.qualified_funcall,
       field("unary_minus", prec(PREC.Override, seq("-", $._expr))),
       field("unary_plus", prec(PREC.Override, seq("+", $._expr))),
       field("unary_bitwise_not", prec(PREC.Override, seq("~", $._expr))),
@@ -232,8 +233,12 @@ module.exports = grammar({
     parameter: $ => "FAIL!parameter",
     // TODO -- deal with keywords
     qualified_id: $ => seq(
+      sepBy1(".", $.identifier), optional(seq(".", "*"))
+    //   optional(choice(seq(".", "*"), $.funcall)),
+    ),
+    qualified_funcall: $ => seq(
       sepBy1(".", $.identifier),
-      optional(choice(seq(".", "*"), $.funcall)),
+      $.funcall,
     ),
     funcall: $ => seq(
       "(",
