@@ -91,7 +91,7 @@ module.exports = grammar({
       optional(seq("OPTIONS", "(", sepBy(",", $.select_option), ")"))
     ),
     select_item: $ => choice(
-      field("wildcard", "*"),
+      alias("*", $.wildcard),
       seq($._expr, optional($.column_alias))
     ),
     // TODO - kw reservation, don't accept `AS OF`
@@ -242,7 +242,7 @@ module.exports = grammar({
     parameter: $ => "FAIL!parameter",
     // TODO -- deal with keywords
     qualified_id: $ => seq(
-      sepBy1(".", $.identifier), optional(seq(".", "*"))
+      sepBy1(".", $.identifier), optional(seq(".", alias("*", $.wildcard)))
     //   optional(choice(seq(".", "*"), $.funcall)),
     ),
     qualified_funcall: $ => seq(
