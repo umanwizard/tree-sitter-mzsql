@@ -261,7 +261,6 @@ module.exports = grammar({
       prec.left(PREC.MultiplyDivide, seq($._expr, $.md_op, $._expr)),
       prec.left(PREC.Other, seq($._expr, $.other_op, $._expr)),
     ),
-    cmp_op: $ => /<|<=|<>|!=|>|>=|=/,
     any_ish: $ => "FAIL!any_ish",
     select_option: $ => "FAIL!select_option",
     distinct: $ => "FAIL!distinct",
