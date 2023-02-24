@@ -62,11 +62,11 @@ module.exports = grammar({
       "*/"
     ),
     query: $ => seq(
-      optional($.ctes),
-      $.body,
+      optional($._ctes),
+      $._body,
       optional($.query_tail),
     ),
-    body: $ => choice(
+    _body: $ => choice(
       $.select,
       prec(2, $.intersect),
       prec(1, $.union_ish),
@@ -83,13 +83,13 @@ module.exports = grammar({
       )),
       sepBy(",", $.select_item),
       optional(seq("FROM", sepBy(",", $.table_and_joins))),
-      optional(seq("WHERE", $.expr)),
-      optional(seq("GROUP", "BY", sepBy(",", $.expr))),
+      optional(seq("WHERE", $._expr)),
+      optional(seq("GROUP", "BY", sepBy(",", $._expr))),
       optional(seq("OPTIONS", "(", sepBy(",", $.select_option), ")"))
     ),
     select_item: $ => choice(
       field("wildcard", "*"),
-      seq($.expr, optional($.column_alias))
+      seq($._expr, optional($.column_alias))
     ),
     // TODO - kw reservation, don't accept `AS OF`
     column_alias: $ => seq(
@@ -134,11 +134,11 @@ module.exports = grammar({
     // TODO -- This should check for keyword reservation
     table_alias: $ => seq(
       optional("AS"),
-      $.bare_table_alias,
+      $._bare_table_alias,
     ),
     lateral_factor: $ => "FAIL!lateral_factor",
     join_constraint: $ => choice(
-      seq("ON", $.expr),
+      seq("ON", $._expr),
       seq("USING", $.parenthesized_column_list),
     ),
     raw_name: $ => seq("[", $.identifier, "AS", $.object_name, "]"),
@@ -153,31 +153,31 @@ module.exports = grammar({
       // /"[^"]+"/,
       /[A-Za-z_][A-Za-z_0-9]*/,
 //    ),
-    expr: $ => choice(
-      $.regular_binary_operator,
-      prec(PREC.Is, $.is),
-      prec(PREC.Is, $.is_null), // TODO check this
-      prec(PREC.Like,$.like_ish),
-      prec(PREC.And, $.and),
-      prec(PREC.Or, $.or),
-      prec(PREC.PostfixCollateAt, $.at),
-      prec(PREC.PostfixCollateAt, $.collate),
-      prec(PREC.PostfixSubscriptCast, $.subscript),
-      prec(PREC.PostfixSubscriptCast, $.pg_cast),
-      prec(PREC.PostfixSubscriptCast, $.access),
-      prec(PREC.Override, $.prefix_expr),
+    _expr: $ => choice(
+      $._regular_binary_operator,
+      $.is,
+      $.is_null,
+      $.like_ish,
+      $.and,
+      $.or,
+      $.at,
+      $.collate,
+      $.subscript,
+      $.pg_cast,
+      $.access,
+      $._prefix_expr,
     ),
     is: $ => "FAIL!is",
     is_null: $ => "FAIL!is_null",
     like_ish: $ => "FAIL!like_ish",
-    and: $ => seq($.expr, "AND", $.expr),
+    and: $ => prec.left(PREC.And, seq($._expr, "AND", $._expr)),
     or: $ => "FAIL!or",
     at: $ => "FAIL!at",
     collate: $ => "FAIL!collate",
     subscript: $ => "FAIL!subscript",
     pg_cast: $ => "FAIL!pg_cast",
     access: $ => "FAIL!access",
-    prefix_expr: $ => choice(
+    _prefix_expr: $ => choice(
       // TODO - typename-preceded literals 
       kwRule("ARRAY", $.array),
       kwRule("LIST", $.list),
@@ -188,15 +188,15 @@ module.exports = grammar({
       kwRule("LEAST", $.homog),
       kwRule("NULLIF", $.nullif),
       kwRule("EXISTS", $.exists),
-      kwRule("NOT", $.expr),
+      prec(PREC.Override, kwRule("NOT", $._expr)),
       kwRule("ROW", $.row),
       kwRule("TRIM", $.trim),
       field("position", seq("POSITION", "(", $.position_special_form, ")")),
       kwRule("SUBSTRING", $.substring),
       $.qualified_id,
-      field("unary_minus", seq("-", $.expr)),
-      field("unary_plus", seq("+", $.expr)),
-      field("unary_bitwise_not", seq("~", $.expr)),
+      field("unary_minus", prec(PREC.Override, seq("-", $._expr))),
+      field("unary_plus", prec(PREC.Override, seq("+", $._expr))),
+      field("unary_bitwise_not", prec(PREC.Override, seq("~", $._expr))),
       $.value,
       $.parameter,
       $.parenthesized_expr,
@@ -204,13 +204,13 @@ module.exports = grammar({
     // TODO -- Test this extra carefully -- see
     // `parse_parenthesized_expression` in mz
     parenthesized_expr: $ => seq(
-      "(", choice($.expr, $.query), ")"
+      "(", choice($._expr, $.query), ")"
     ),
     value: $ => choice(
       "TRUE", "FALSE", "NULL",
       kwRule("INTERVAL", $.interval_value),
       // TODO - do we need unary +/- here,
-      // or is it enough for it to be in `prefix_expr` ?
+      // or is it enough for it to be in `_prefix_expr` ?
       $.number,
       $.string,
       $.hex_string,
@@ -244,23 +244,23 @@ module.exports = grammar({
     position_special_form: $ => "FAIL!position_special_form",
     substring: $ => "FAIL!substring",
     
-    regular_binary_operator: $ => choice(
+    _regular_binary_operator: $ => choice(
       $.any_ish,
-      $.normal_binary_operator,
+      $._normal_binary_operator,
       kwRule("OPERATOR", $.kw_op)
     ),
-    normal_binary_operator: $ => choice(
-      prec.left(PREC.Cmp, seq($.expr, $.cmp_op, $.expr)),
-      prec.left(PREC.PlusMinus, seq($.expr, /\+|-/, $.expr)),
-      prec.left(PREC.MultiplyDivide, seq($.expr, /\/|%|\*/, $.expr)),
-      prec.left(PREC.Other, seq($.expr, $.op, $.expr)),
+    _normal_binary_operator: $ => choice(
+      prec.left(PREC.Cmp, seq($._expr, $.cmp_op, $._expr)),
+      prec.left(PREC.PlusMinus, seq($._expr, /\+|-/, $._expr)),
+      prec.left(PREC.MultiplyDivide, seq($._expr, /\/|%|\*/, $._expr)),
+      prec.left(PREC.Other, seq($._expr, $.op, $._expr)),
     ),
     cmp_op: $ => /<|<=|<>|!=|>|>=|=/,
     any_ish: $ => "FAIL!any_ish",
     select_option: $ => "FAIL!select_option",
     distinct: $ => "FAIL!distinct",
     query_tail: $ => "FAIL!query_tail",
-    ctes: $ => seq(
+    _ctes: $ => seq(
       "WITH",
       choice(
         field("WMR", seq("MUTUALLY", "RECURSIVE", sepBy(",", $.mut_rec_cte))),
@@ -268,7 +268,7 @@ module.exports = grammar({
       )
     ),
     cte: $ => seq(
-      $.bare_table_alias,
+      alias($._bare_table_alias, $.table_alias),
       "AS",
       "(",
       $.query,
@@ -276,7 +276,7 @@ module.exports = grammar({
     ),
     // A table alias that can't be preceded by `AS`
     // and that doesn't check for keyword reservation
-    bare_table_alias: $ => seq(
+    _bare_table_alias: $ => seq(
       $.identifier,
       optional($.parenthesized_column_list),
     ),
