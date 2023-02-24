@@ -235,7 +235,53 @@ module.exports = grammar({
       sepBy1(".", $.identifier),
       optional(choice(seq(".", "*"), $.funcall)),
     ),
-    funcall: $ => "FAIL!funcall",
+    funcall: $ => seq(
+      "(",
+      optional(choice("DISTINCT", "ALL")),
+      choice(
+        "*",
+        blank(),
+        seq(
+          sepBy(",", $._expr),
+          optional(seq(
+            "ORDER", "BY",
+            sepBy(",", $.order_by_expr)
+          ))
+        ),
+      ),
+      ")",
+      optional($.filter),
+      optional($.window_spec),      
+    ),
+    filter: $ => seq(
+      "FILTER", "(", "WHERE", $._expr, ")"
+    ),
+    order_by_expr: $ => seq(
+      $._expr,
+      optional(choice("ASC", "DESC")),
+      optional(seq("NULLS", choice("FIRST", "LAST"))),
+    ),
+    window_spec: $ => seq(      
+      "OVER", "(",
+      optional(seq("PARTITION", "BY", sepBy(",", $._expr))),
+      optional(seq("ORDER", "BY", sepBy(",", $.order_by_expr))),
+      optional($.window_frame),
+      ")"
+    ),
+    window_frame: $ => seq(
+      choice("ROWS", "RANGE", "GROUPS"),
+      choice(
+        seq("BETWEEN", $.wf_bound, "AND", $.wf_bound),
+        $.wf_bound,
+      ),
+    ),
+    wf_bound: $ => choice(
+      seq("CURRENT", "ROW"),
+      seq(
+        choice("UNBOUNDED", $.number),
+        choice("PRECEDING", "FOLLOWING")
+      ),
+    ),
     kw_op: $ => "FAIL!kw_op",
     array: $ => "FAIL!array",
     list: $ => "FAIL!list",
