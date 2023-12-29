@@ -56,6 +56,7 @@ module.exports = grammar({
       $.execute,
       $.deallocate,
       $.raise,
+      $._grant,
       seq('(', $.query, ')'),
     ),
     line_comment: $ => seq("--", /[^\r\n]*/),
@@ -416,6 +417,50 @@ module.exports = grammar({
     execute: $ => "FAIL!execute",
     deallocate: $ => "FAIL!deallocate",
     raise: $ => "FAIL!raise",
+    _grant: $ => seq(
+      choice(
+        $.grant_privileges,
+        $.grant_role,
+      ),
+    ),
+    grant_privileges: $ => seq(
+      "GRANT",
+      $.priv_spec,
+      "ON",
+      $.grant_target_spec,
+      "TO",
+      sepBy1(",", $.role_spec),
+    ),
+    priv_spec: $ => choice(
+      seq("ALL", optional("PRIVILEGES")),
+      sepBy1(",", choice("INSERT", "SELECT", "UPDATE", "DELETE", "USAGE", "CREATE", "CREATEROLE", "CREATEDB", "CREATECLUSTER")),
+    ),
+    role_spec: $ => seq(
+      optional("GROUP"),
+      $.identifier,
+    ),
+    grant_target_spec: $ => choice(
+      "SYSTEM",
+      $.grant_all,
+      $.grant_non_all,
+    ),
+    grant_all: $ => seq(
+      "ALL",
+      choice("TABLES", "TYPES", "CLUSTERS", "SECRETS", "CONNECTIONS", "DATABASES", "SCHEMAS"),
+      optional($.grant_all_in),
+    ),
+    grant_all_in: $ => seq(
+      "IN",
+      choice(
+        seq("DATABASE", sepBy1(",", $.identifier)),
+        seq("SCHEMA", sepBy1(",", $.object_name)),
+      ),
+    ),
+    grant_non_all: $ => seq(
+      optional(choice("TABLE", "TYPE", "CLUSTER", "SECRET", "CONNECTION", "DATABASE", "SCHEMA")),
+      sepBy1(",", $.object_name),
+    ),
+    grant_role: $ => "FAIL!grant_role",
   }
 });
 
