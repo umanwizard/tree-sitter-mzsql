@@ -27,7 +27,7 @@ module.exports = grammar({
   // Read about LR(1)/GLR theory to understand what this actually means...
   conflicts: $ => [
     [$._body, $.parenthesized_expr],
-    [$._body, $.non_lateral_derived_table_factor],
+    [$._body, $.derived_table_factor],
   ],
   externals: $ => [
     $.cmp_op,
@@ -137,20 +137,21 @@ module.exports = grammar({
     ),
     table_factor: $ => choice(
       seq("LATERAL", $.lateral_factor),
-      $.non_lateral_derived_table_factor,
+      $.derived_table_factor,
       seq("(", $.table_and_joins, ")"),
       seq("ROWS", "FROM", $.rows_from),
       seq($.raw_name, choice(
         seq("(",
             optional($.table_factor_args),
+            ")",
             optional($.table_alias),
             optional(seq("WITH", "ORDINALITY")),
-            ")"),
+           ),
         optional($.table_alias),
       )),
     ),
     // Assumes parens ARE NOT consumed by caller
-    non_lateral_derived_table_factor: $ => seq(
+    derived_table_factor: $ => seq(
       "(",
       $.query,
       ")",
@@ -163,7 +164,10 @@ module.exports = grammar({
       optional($.table_alias),
       optional(seq("WITH", "ORDINALITY")),
     ),
-    // TODO - `ORDER BY` should only sometimes be allowed
+    table_factor_args: $ => choice(
+      "*",
+      sepBy1(",", $._expr),
+    ),
     args: $ => choice(
       "*",
       seq(
@@ -174,13 +178,23 @@ module.exports = grammar({
         )),
       ),
     ),
-    table_factor_args: $ => "FAIL!table_factor_args",
     // TODO -- This should check for keyword reservation
     table_alias: $ => seq(
       optional("AS"),
       $._bare_table_alias,
     ),
-    lateral_factor: $ => "FAIL!lateral_factor",
+    lateral_factor: $ => choice(
+      $.derived_table_factor,
+      seq("ROWS", "FROM", $.rows_from),
+      seq(
+        $.raw_name,
+        "(",
+        optional($.table_factor_args),
+        ")",
+        optional($.table_alias),
+        optional(seq("WITH", "ORDINALITY")),
+      ),
+    ),
     join_constraint: $ => choice(
       seq("ON", $._expr),
       seq("USING", $.parenthesized_column_list),
@@ -207,7 +221,7 @@ module.exports = grammar({
     bin_expr: $ => choice(
       $._regular_binary_operator,
       $.is,
-      $.is_null,
+      $.isnull,
       $.like_ish,
       $.and,
       $.or,
@@ -227,8 +241,25 @@ module.exports = grammar({
       field("end", optional(seq(":", $._expr))),
       "]",
     ),
-    is: $ => "FAIL!is",
-    is_null: $ => "FAIL!is_null",
+    is: $ => prec.left(PREC.Is, seq(
+      $._expr,
+      "IS",
+      optional("NOT"),
+      $._is_right_side
+    )),
+    _is_right_side: $ => choice(
+      "NULL",
+      "TRUE",
+      "FALSE",
+      "UNKNOWN",
+      $.distinct_from,
+    ),
+    distinct_from: $ => seq(
+      "DISTINCT",
+      "FROM",
+      $._expr,
+    ),
+    isnull: $ => "FAIL!isnull",
     like_ish: $ => "FAIL!like_ish",
     and: $ => prec.left(PREC.And, seq($._expr, "AND", $._expr)),
     or: $ => "FAIL!or",
