@@ -1,4 +1,4 @@
-const PREC = {
+ const PREC = {
   Or: 1,
   And: 2,
   PrefixNot: 3,
@@ -21,6 +21,13 @@ module.exports = grammar({
     /[ \t\r\n]/,
     $.line_comment,
     $.block_comment,
+  ],
+  // TODO - I don't actually
+  // understand how parsers work, so IDK about this.
+  // Read about LR(1)/GLR theory to understand what this actually means...
+  conflicts: $ => [
+    [$._body, $.parenthesized_expr],
+    [$._body, $.non_lateral_derived_table_factor],
   ],
   externals: $ => [
     $.cmp_op,
@@ -57,8 +64,7 @@ module.exports = grammar({
       $.deallocate,
       $.raise,
       $._grant,
-      seq('(', $.query, ')'),
-    ),
+     ),
     line_comment: $ => seq("--", /[^\r\n]*/),
     block_comment: $ => seq(
       "/*",
@@ -72,12 +78,19 @@ module.exports = grammar({
     ),
     _body: $ => choice(
       $.select,
+      seq('(', $.query, ')'),
+      // TODO: values, show, table
       prec(2, $.intersect),
       prec(1, $.union_ish),
     ),
-    // UNION, EXCEPT, or UNION EXCEPT;
+    // UNION or EXCEPT;
     // i.e., those set exprs that bind less tightly than `INTERSECT`.
-    union_ish: $ => "FAIL!union_ish",
+    union_ish: $ => prec.left(seq(
+      $._body,
+      choice("UNION", "EXCEPT"),
+      optional(choice("ALL", "DISTINCT")),
+      $._body,
+    )),
     intersect: $ => "FAIL!intersect",
     select: $ => seq(
       "SELECT",
@@ -119,10 +132,8 @@ module.exports = grammar({
     ),
     table_factor: $ => choice(
       seq("LATERAL", $.lateral_factor),
-      seq("(",
-          choice($.non_lateral_derived_table_factor,
-                 $.table_and_joins),
-          ")"),
+      $.non_lateral_derived_table_factor,
+      seq("(", $.table_and_joins, ")"),
       seq("ROWS", "FROM", $.rows_from),
       seq($.raw_name, choice(
         seq("(",
@@ -133,7 +144,13 @@ module.exports = grammar({
         optional($.table_alias),
       )),
     ),
-    non_lateral_derived_table_factor: $ => "FAIL!non_lateral_derived_table_factor",
+    // Assumes parens ARE NOT consumed by caller
+    non_lateral_derived_table_factor: $ => seq(
+      "(",
+      $.query,
+      ")",
+      optional($.table_alias),
+    ),
     rows_from: $ => seq(
       "(",
       sepBy1(",", seq($.raw_name, $.funcall)),
