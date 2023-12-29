@@ -99,7 +99,7 @@ module.exports = grammar({
         seq("DISTINCT", $.distinct),
       )),
       sepBy(",", $.select_item),
-      optional(seq("FROM", sepBy(",", $.table_and_joins))),
+      optional(seq("FROM", sepBy1(",", $.table_and_joins))),
       optional(seq("WHERE", $._expr)),
       optional(seq("GROUP", "BY", sepBy(",", $._expr))),
       optional(seq("OPTIONS", "(", sepBy(",", $.select_option), ")"))
