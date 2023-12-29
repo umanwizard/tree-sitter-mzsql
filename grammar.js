@@ -80,18 +80,23 @@ module.exports = grammar({
       $.select,
       seq('(', $.query, ')'),
       // TODO: values, show, table
-      prec(2, $.intersect),
-      prec(1, $.union_ish),
+      $.intersect,
+      $.union_ish,
     ),
     // UNION or EXCEPT;
     // i.e., those set exprs that bind less tightly than `INTERSECT`.
-    union_ish: $ => prec.left(seq(
+    union_ish: $ => prec.left(1, seq(
       $._body,
       choice("UNION", "EXCEPT"),
       optional(choice("ALL", "DISTINCT")),
       $._body,
     )),
-    intersect: $ => "FAIL!intersect",
+    intersect: $ => prec.left(2, seq(
+      $._body,
+      choice("INTERSECT"),
+      optional(choice("ALL", "DISTINCT")),
+      $._body,
+    )),
     select: $ => seq(
       "SELECT",
       optional(choice(
