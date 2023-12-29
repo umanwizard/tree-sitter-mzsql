@@ -1,0 +1,1 @@
+SELECT foo(x) FILTER (WHERE y=t) OVER (PARTITION BY 2+5,x,y@n.foo), bar(*), quux(ALL y), baz(DISTINCT z), xyzzy()  FROM t;
