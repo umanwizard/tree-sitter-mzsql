@@ -124,16 +124,34 @@ module.exports = grammar({
                  $.table_and_joins),
           ")"),
       seq("ROWS", "FROM", $.rows_from),
-      seq($.raw_name, optional(
+      seq($.raw_name, choice(
         seq("(",
             optional($.table_factor_args),
             optional($.table_alias),
             optional(seq("WITH", "ORDINALITY")),
-            ")"))),
-      seq($.object_name, optional($.table_alias)),
+            ")"),
+        optional($.table_alias),
+      )),
     ),
     non_lateral_derived_table_factor: $ => "FAIL!non_lateral_derived_table_factor",
-    rows_from: $ => "FAIL!rows_from",
+    rows_from: $ => seq(
+      "(",
+      sepBy1(",", seq($.raw_name, $.funcall)),
+      ")",
+      optional($.table_alias),
+      optional(seq("WITH", "ORDINALITY")),
+    ),
+    // TODO - `ORDER BY` should only sometimes be allowed
+    args: $ => choice(
+      "*",
+      seq(
+        sepBy1(",", $._expr),
+        optional(seq(
+          "ORDER", "BY",
+          sepBy1(",", $.order_by_expr),
+        )),
+      ),
+    ),
     table_factor_args: $ => "FAIL!table_factor_args",
     // TODO -- This should check for keyword reservation
     table_alias: $ => seq(
@@ -145,7 +163,10 @@ module.exports = grammar({
       seq("ON", $._expr),
       seq("USING", $.parenthesized_column_list),
     ),
-    raw_name: $ => seq("[", $.identifier, "AS", $.object_name, "]"),
+    raw_name: $ => choice(
+      seq("[", $.identifier, "AS", $.object_name, "]"),
+      $.object_name,
+    ),
     object_name: $ => sepBy1(".", $.identifier),
     parenthesized_column_list: $ => seq(
       "(",
@@ -253,17 +274,8 @@ module.exports = grammar({
     funcall: $ => seq(
       "(",
       optional(choice("DISTINCT", "ALL")),
-      choice(
-        "*",
-        blank(),
-        seq(
-          sepBy(",", $._expr),
-          optional(seq(
-            "ORDER", "BY",
-            sepBy(",", $.order_by_expr)
-          ))
-        ),
-      ),
+      // TODO: ban `DISTINCT *`
+      optional($.args),
       ")",
       optional($.filter),
       optional($.window_spec),      

@@ -1,0 +1,1 @@
+SELECT jsonb_array_elements.generate_series FROM ROWS FROM (jsonb_array_elements('[1]'), generate_series(1, 1));
