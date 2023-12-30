@@ -537,13 +537,15 @@ module.exports = grammar({
     ),
     column_option: $ => seq(
       optional(seq(k("CONSTRAINT"), $.identifier)),
-      seq(k("NOT"), k("NULL")),
-      k("NULL"),
-      seq(k("DEFAULT"), $._expr),
-      seq(k("PRIMARY"), k("KEY")),
-      k("UNIQUE"),
-      seq(k("REFERENCES"), $.object_name, $.parenthesized_column_list),
-      seq(k("CHECK"), "(", $._expr, ")"),
+      choice(
+        seq(k("NOT"), k("NULL")),
+        k("NULL"),
+        seq(k("DEFAULT"), $._expr),
+        seq(k("PRIMARY"), k("KEY")),
+        k("UNIQUE"),
+        seq(k("REFERENCES"), $.object_name, $.parenthesized_column_list),
+        seq(k("CHECK"), "(", $._expr, ")"),
+      ),
     ),
     typ_mod: $ => seq(
       "(",
