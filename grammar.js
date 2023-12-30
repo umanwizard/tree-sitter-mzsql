@@ -4,7 +4,7 @@
   PrefixNot: 3,
   Is: 4,
   Cmp: 5,
-  Like: 6,
+  LikeInBetween: 6,
   Other: 7,
   PlusMinus: 8,
   MultiplyDivide: 9,
@@ -79,9 +79,19 @@ module.exports = grammar({
     _body: $ => choice(
       $.select,
       seq('(', $.query, ')'),
-      // TODO: values, show, table
+      $.values,
+      // TODO: show, table
       $.intersect,
       $.union_ish,
+    ),
+    values: $ => seq(
+      "VALUES",
+      sepBy1(",",
+             seq(
+               "(",
+               sepBy1(",", $._expr),
+               ")",
+             )),
     ),
     // UNION or EXCEPT;
     // i.e., those set exprs that bind less tightly than `INTERSECT`.
@@ -223,6 +233,8 @@ module.exports = grammar({
       $.is,
       $.isnull,
       $.like_ish,
+      alias($._in, $.in),
+      $.between,
       $.and,
       $.or,
       $.at,
@@ -259,8 +271,25 @@ module.exports = grammar({
       "FROM",
       $._expr,
     ),
-    isnull: $ => "FAIL!isnull",
-    like_ish: $ => "FAIL!like_ish",
+    isnull: $ => "ISNULL",
+    like_ish: $ => prec.left(PREC.LikeInBetween, seq(
+      $._expr,
+      optional("NOT"),
+      choice("LIKE", "ILIKE"),
+      $._expr,
+      optional(seq("ESCAPE", $._expr)),
+    )),
+    _in: $ => prec.left(PREC.LikeInBetween,
+      seq(
+        $._expr,        
+        optional("NOT"),
+        "IN",
+        "(",
+        choice($.query, sepBy1(",", $._expr)),
+        ")",
+      ),
+    ),
+    between: $ => prec.left(PREC.LikeInBetween, "FAIL!between"),
     and: $ => prec.left(PREC.And, seq($._expr, "AND", $._expr)),
     or: $ => "FAIL!or",
     at: $ => "FAIL!at",
@@ -462,7 +491,20 @@ module.exports = grammar({
     discard: $ => "FAIL!discard",
     drop: $ => "FAIL!drop",
     delete: $ => "FAIL!delete",
-    insert: $ => "FAIL!insert",
+    insert: $ => seq(
+      "INSERT", "INTO",
+      $.raw_name,
+      optional($.parenthesized_column_list),
+      choice(
+        seq("DEFAULT", "VALUES"),
+        $.query,
+      ),
+      optional($.returning),
+    ),
+    returning: $ => seq(
+      "RETURNING",
+      sepBy1(",", $.select_item),
+    ),
     update: $ => "FAIL!update",
     alter: $ => "FAIL!alter",
     copy: $ => "FAIL!copy",
