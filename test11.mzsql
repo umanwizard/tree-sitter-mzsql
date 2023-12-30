@@ -1,0 +1,4 @@
+create table t (x char varying, y int8 not null);
+create table t2 (x int8 not null, y timestamp(-42) with time zone);
+create table t3 (x somerandomtype2);
+create table t4 (x int not null);
