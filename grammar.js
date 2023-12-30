@@ -422,7 +422,16 @@ module.exports = grammar({
     _ctes: $ => seq(
       k("WITH"),
       choice(
-        alias(seq(k("MUTUALLY"), k("RECURSIVE"), sepBy(",", $.mut_rec_cte)), $.wmr),
+        alias(
+          seq(
+            k("MUTUALLY"), k("RECURSIVE"),
+            optional(seq(
+              "(",
+              sepBy1(",", $.mut_rec_block_option),
+              ")"
+            )),
+            sepBy1(",", $.mut_rec_cte)),
+          $.wmr),
         sepBy(",", $.cte),
       )
     ),
@@ -439,7 +448,32 @@ module.exports = grammar({
       $.identifier,
       optional($.parenthesized_column_list),
     ),
-    mut_rec_cte: $ => "FAIL!mut_rec_cte",
+    mut_rec_block_option: $ => seq(
+      choice(
+        seq(k("RECURSION"), k("LIMIT")),
+        seq(k("RETURN"), k("AT"), k("RECURSION"), k("LIMIT")),
+        seq(k("ERROR"), k("AT"), k("RECURSION"), k("LIMIT")),
+      ),
+      optional(seq("=", $.option_value)),
+    ),
+    option_value: $ => choice(
+      seq("(", sepBy1(",", $.option_value), ")"),
+      seq("[", sepBy1(",", $.option_value), "]"),
+      seq(k("SECRET"), $.raw_name),
+      $._value,
+      $.identifier,
+    ),
+    mut_rec_cte: $ => seq(
+      $.identifier,
+      "(",
+      sepBy1(",",
+             alias(seq($.identifier, $.data_type), $.mut_rec_column_def)),
+      ")",
+      k("AS"),
+      "(",
+      $.query,
+      ")",
+    ),
     as_of: $ => "FAIL!as_of",
     _create: $ => choice(
         $.create_database,
