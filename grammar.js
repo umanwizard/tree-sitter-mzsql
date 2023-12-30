@@ -1,4 +1,4 @@
- const PREC = {
+const PREC = {
   Or: 1,
   And: 2,
   PrefixNot: 3,
@@ -292,26 +292,26 @@ module.exports = grammar({
     pg_cast: $ => "FAIL!pg_cast",
     access: $ => "FAIL!access",
     _prefix_expr: $ => choice(
-      // TODO - typename-preceded literals 
-      kwRule("ARRAY", $.array),
-      kwRule("LIST", $.list),
-      kwRule("CASE", $.case),
-      kwRule("CAST", $.cast),
-      kwRule("COALESCE", $.homog),
-      kwRule("GREATEST", $.homog),
-      kwRule("LEAST", $.homog),
-      kwRule("NULLIF", $.nullif),
-      kwRule("EXISTS", $.exists),
-      prec(PREC.Override, kwRule("NOT", $._expr)),
-      kwRule("ROW", $.row),
-      kwRule("TRIM", $.trim),
-      field("position", seq(k("POSITION"), "(", $.position_special_form, ")")),
-      kwRule("SUBSTRING", $.substring),
+      // TODO - typename-preceded literals
+      $.array_expr,
+      $.list_expr,
+      $.case_expr,
+      $.cast_expr,
+      $.coalesce_expr,
+      $.greatest_expr,
+      $.least_expr,
+      $.nullif_expr,
+      $.exists_expr,
+      $.not_expr,
+      $.row_expr,
+      $.trim_expr,
+      $.position_expr,
+      $.substring_expr,      
       $.qualified_id,
       $.qualified_funcall,
-      field("unary_minus", prec(PREC.Override, seq("-", $._expr))),
-      field("unary_plus", prec(PREC.Override, seq("+", $._expr))),
-      field("unary_bitwise_not", prec(PREC.Override, seq("~", $._expr))),
+      alias(prec(PREC.Override, seq("-", $._expr)), $.unary_minus_expr),
+      alias(prec(PREC.Override, seq("+", $._expr)), $.unary_plus_expr),
+      alias(prec(PREC.Override, seq("~", $._expr)), $.unary_bitwise_not_expr),
       $._value,
       $.parameter,
       $.parenthesized_expr,
@@ -323,7 +323,7 @@ module.exports = grammar({
     ),
     _value: $ => choice(
       k("TRUE"), k("FALSE"), k("NULL"),
-      kwRule("INTERVAL", $.interval_value),
+      $.interval_value,
       // TODO - do we need unary +/- here,
       // or is it enough for it to be in `_prefix_expr` ?
       $.number,
@@ -386,24 +386,28 @@ module.exports = grammar({
         choice(k("PRECEDING"), k("FOLLOWING"))
       ),
     ),
-    kw_op: $ => "FAIL!kw_op",
-    array: $ => "FAIL!array",
-    list: $ => "FAIL!list",
-    case: $ => "FAIL!case",
-    cast: $ => "FAIL!cast",
-    homog: $ => "FAIL!homog",
-    nullif: $ => "FAIL!nullif",
-    exists: $ => "FAIL!exists",
+    kw_op_expr: $ => "FAIL!kw_op",
+    array_expr: $ => "FAIL!array",
+    list_expr: $ => "FAIL!list",
+    coalesce_expr: $ => "FAIL!coalesce",
+    greatest_expr: $ => "FAIL!greatest",
+    least_expr: $ => "FAIL!least",
+    not_expr: $ => "FAIL!not",
+    case_expr: $ => "FAIL!case",
+    cast_expr: $ => "FAIL!cast",
+    homog_expr: $ => "FAIL!homog",
+    nullif_expr: $ => "FAIL!nullif",
+    exists_expr: $ => "FAIL!exists",
     interval_value: $ => "FAIL!interval_value",
-    row: $ => "FAIL!row",
-    trim: $ => "FAIL!trim",
-    position_special_form: $ => "FAIL!position_special_form",
-    substring: $ => "FAIL!substring",
+    row_expr: $ => "FAIL!row",
+    trim_expr: $ => "FAIL!trim",
+    position_expr: $ => "FAIL!position",
+    substring_expr: $ => "FAIL!substring",
     
     _regular_binary_operator: $ => choice(
       $.any_ish,
       $._normal_binary_operator,
-      kwRule("OPERATOR", $.kw_op)
+      $.kw_op_expr,
     ),
     _normal_binary_operator: $ => choice(
       prec.left(PREC.Cmp, seq($._expr, $.cmp_op, $._expr)),
@@ -418,7 +422,7 @@ module.exports = grammar({
     _ctes: $ => seq(
       k("WITH"),
       choice(
-        field("WMR", seq(k("MUTUALLY"), k("RECURSIVE"), sepBy(",", $.mut_rec_cte))),
+        alias(seq(k("MUTUALLY"), k("RECURSIVE"), sepBy(",", $.mut_rec_cte)), $.wmr),
         sepBy(",", $.cte),
       )
     ),
@@ -687,8 +691,4 @@ function k(kw) {
     r += ('[' + ch.toLowerCase() + ch.toUpperCase() + ']');
   }
   return alias(token(prec(PREC.Override, new RegExp(r))), kw);
-}
-
-function kwRule(kw, rule) {
-  return field(kw.toLowerCase(), seq(k(kw), rule));
 }
