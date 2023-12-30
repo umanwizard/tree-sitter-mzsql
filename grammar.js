@@ -686,7 +686,7 @@ function k(kw) {
   for (let ch of kw) {
     r += ('[' + ch.toLowerCase() + ch.toUpperCase() + ']');
   }
-  return token(prec(PREC.Override, new RegExp(r)));
+  return alias(token(prec(PREC.Override, new RegExp(r))), kw);
 }
 
 function kwRule(kw, rule) {
