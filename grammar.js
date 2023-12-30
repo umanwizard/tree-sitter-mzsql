@@ -219,11 +219,6 @@ module.exports = grammar({
       sepBy(",", $.identifier),
       ")",
     ),
-    // TODO: quoted IDs and arbitrary unicode
-    identifier: $ => // choice(
-      // /"[^"]+"/,
-      /[A-Za-z_][A-Za-z_0-9]*/,
-//    ),
     _expr: $ => choice(
       $.bin_expr,
       $._prefix_expr,
@@ -519,7 +514,7 @@ module.exports = grammar({
       repeat($.column_option),
     ),
     data_type: $ => choice(
-      seq(choice(k("char"), k("character")), optional("varying"), optional($.typ_mod)),
+      seq(choice(k("char"), k("character")), optional(k("varying")), optional($.typ_mod)),
       seq(k("bpchar"), optional($.typ_mod)),
       seq(k("varchar"), optional($.typ_mod)),
       k("string"),
@@ -530,6 +525,7 @@ module.exports = grammar({
       seq(k("float"), optional($.precision)),
       k("int"),
       k("integer"),
+      k("real"),
       seq(k("time"), optional(seq(choice(k("WITH"), k("WITHOUT")), k("TIME"), k("ZONE")))),
       seq(k("timestamp"), optional($.timestamp_precision), optional(seq(choice(k("WITH"), k("WITHOUT")), k("TIME"), k("ZONE")))),
       seq(k("timestamptz"), optional($.timestamp_precision)),
@@ -667,6 +663,8 @@ module.exports = grammar({
       sepBy1(",", $.object_name),
     ),
     grant_role: $ => "FAIL!grant_role",
+    // TODO: quoted IDs and arbitrary unicode
+    identifier: $ => token(prec(PREC.Override, /[A-Za-z_][A-Za-z_0-9]*/)),
   }
 });
 
@@ -686,7 +684,7 @@ function k(kw) {
   for (let ch of kw) {
     r += ('[' + ch.toLowerCase() + ch.toUpperCase() + ']');
   }
-  return new RegExp(r);
+  return token(prec(PREC.Override, new RegExp(r)));
 }
 
 function kwRule(kw, rule) {
