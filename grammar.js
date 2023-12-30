@@ -85,7 +85,7 @@ module.exports = grammar({
       $.union_ish,
     ),
     values: $ => seq(
-      "VALUES",
+      k("VALUES"),
       sepBy1(",",
              seq(
                "(",
@@ -97,27 +97,27 @@ module.exports = grammar({
     // i.e., those set exprs that bind less tightly than `INTERSECT`.
     union_ish: $ => prec.left(1, seq(
       $._body,
-      choice("UNION", "EXCEPT"),
-      optional(choice("ALL", "DISTINCT")),
+      choice(k("UNION"), k("EXCEPT")),
+      optional(choice(k("ALL"), k("DISTINCT"))),
       $._body,
     )),
     intersect: $ => prec.left(2, seq(
       $._body,
-      choice("INTERSECT"),
-      optional(choice("ALL", "DISTINCT")),
+      choice(k("INTERSECT")),
+      optional(choice(k("ALL"), k("DISTINCT"))),
       $._body,
     )),
     select: $ => seq(
-      "SELECT",
+      k("SELECT"),
       optional(choice(
-        "ALL",
-        seq("DISTINCT", $.distinct),
+        k("ALL"),
+        seq(k("DISTINCT"), $.distinct),
       )),
       sepBy(",", $.select_item),
-      optional(seq("FROM", sepBy1(",", $.table_and_joins))),
-      optional(seq("WHERE", $._expr)),
-      optional(seq("GROUP", "BY", sepBy(",", $._expr))),
-      optional(seq("OPTIONS", "(", sepBy(",", $.select_option), ")"))
+      optional(seq(k("FROM"), sepBy1(",", $.table_and_joins))),
+      optional(seq(k("WHERE"), $._expr)),
+      optional(seq(k("GROUP"), k("BY"), sepBy(",", $._expr))),
+      optional(seq(k("OPTIONS"), "(", sepBy(",", $.select_option), ")"))
     ),
     select_item: $ => choice(
       alias("*", $.wildcard),
@@ -125,7 +125,7 @@ module.exports = grammar({
     ),
     // TODO - kw reservation, don't accept `AS OF`
     column_alias: $ => seq(
-      optional("AS"),
+      optional(k("AS")),
       $.identifier,
     ),
     table_and_joins: $ => seq(
@@ -133,12 +133,12 @@ module.exports = grammar({
       repeat($.join),
     ),
     join_type: $ => choice(
-          seq(optional("INNER"), "JOIN"),
-          seq(choice("LEFT", "RIGHT", "FULL"), optional("OUTER"), "JOIN"),          
+          seq(optional(k("INNER")), k("JOIN")),
+          seq(choice(k("LEFT"), k("RIGHT"), k("FULL")), optional(k("OUTER")), k("JOIN")),          
     ),
     join: $ => choice(
-      seq("CROSS", "JOIN"),
-      seq("NATURAL", $.join_type, $.table_factor),
+      seq(k("CROSS"), k("JOIN")),
+      seq(k("NATURAL"), $.join_type, $.table_factor),
       seq(
         $.join_type,
         $.table_factor,
@@ -146,16 +146,16 @@ module.exports = grammar({
       )
     ),
     table_factor: $ => choice(
-      seq("LATERAL", $.lateral_factor),
+      seq(k("LATERAL"), $.lateral_factor),
       $.derived_table_factor,
       seq("(", $.table_and_joins, ")"),
-      seq("ROWS", "FROM", $.rows_from),
+      seq(k("ROWS"), k("FROM"), $.rows_from),
       seq($.raw_name, choice(
         seq("(",
             optional($.table_factor_args),
             ")",
             optional($.table_alias),
-            optional(seq("WITH", "ORDINALITY")),
+            optional(seq(k("WITH"), k("ORDINALITY"))),
            ),
         optional($.table_alias),
       )),
@@ -172,7 +172,7 @@ module.exports = grammar({
       sepBy1(",", seq($.raw_name, $.funcall)),
       ")",
       optional($.table_alias),
-      optional(seq("WITH", "ORDINALITY")),
+      optional(seq(k("WITH"), k("ORDINALITY"))),
     ),
     table_factor_args: $ => choice(
       "*",
@@ -183,34 +183,34 @@ module.exports = grammar({
       seq(
         sepBy1(",", $._expr),
         optional(seq(
-          "ORDER", "BY",
+          k("ORDER"), k("BY"),
           sepBy1(",", $.order_by_expr),
         )),
       ),
     ),
     // TODO -- This should check for keyword reservation
     table_alias: $ => seq(
-      optional("AS"),
+      optional(k("AS")),
       $._bare_table_alias,
     ),
     lateral_factor: $ => choice(
       $.derived_table_factor,
-      seq("ROWS", "FROM", $.rows_from),
+      seq(k("ROWS"), k("FROM"), $.rows_from),
       seq(
         $.raw_name,
         "(",
         optional($.table_factor_args),
         ")",
         optional($.table_alias),
-        optional(seq("WITH", "ORDINALITY")),
+        optional(seq(k("WITH"), k("ORDINALITY"))),
       ),
     ),
     join_constraint: $ => choice(
-      seq("ON", $._expr),
-      seq("USING", $.parenthesized_column_list),
+      seq(k("ON"), $._expr),
+      seq(k("USING"), $.parenthesized_column_list),
     ),
     raw_name: $ => choice(
-      seq("[", $.identifier, "AS", $.object_name, "]"),
+      seq("[", $.identifier, k("AS"), $.object_name, "]"),
       $.object_name,
     ),
     object_name: $ => sepBy1(".", $.identifier),
@@ -255,42 +255,42 @@ module.exports = grammar({
     ),
     is: $ => prec.left(PREC.Is, seq(
       $._expr,
-      "IS",
-      optional("NOT"),
+      k("IS"),
+      optional(k("NOT")),
       $._is_right_side
     )),
     _is_right_side: $ => choice(
-      "NULL",
-      "TRUE",
-      "FALSE",
-      "UNKNOWN",
+      k("NULL"),
+      k("TRUE"),
+      k("FALSE"),
+      k("UNKNOWN"),
       $.distinct_from,
     ),
     distinct_from: $ => seq(
-      "DISTINCT",
-      "FROM",
+      k("DISTINCT"),
+      k("FROM"),
       $._expr,
     ),
-    isnull: $ => "ISNULL",
+    isnull: $ => k("ISNULL"),
     like_ish: $ => prec.left(PREC.LikeInBetween, seq(
       $._expr,
-      optional("NOT"),
-      choice("LIKE", "ILIKE"),
+      optional(k("NOT")),
+      choice(k("LIKE"), k("ILIKE")),
       $._expr,
-      optional(seq("ESCAPE", $._expr)),
+      optional(seq(k("ESCAPE"), $._expr)),
     )),
     _in: $ => prec.left(PREC.LikeInBetween,
       seq(
         $._expr,        
-        optional("NOT"),
-        "IN",
+        optional(k("NOT")),
+        k("IN"),
         "(",
         choice($.query, sepBy1(",", $._expr)),
         ")",
       ),
     ),
     between: $ => prec.left(PREC.LikeInBetween, "FAIL!between"),
-    and: $ => prec.left(PREC.And, seq($._expr, "AND", $._expr)),
+    and: $ => prec.left(PREC.And, seq($._expr, k("AND"), $._expr)),
     or: $ => "FAIL!or",
     at: $ => "FAIL!at",
     collate: $ => "FAIL!collate",
@@ -310,7 +310,7 @@ module.exports = grammar({
       prec(PREC.Override, kwRule("NOT", $._expr)),
       kwRule("ROW", $.row),
       kwRule("TRIM", $.trim),
-      field("position", seq("POSITION", "(", $.position_special_form, ")")),
+      field("position", seq(k("POSITION"), "(", $.position_special_form, ")")),
       kwRule("SUBSTRING", $.substring),
       $.qualified_id,
       $.qualified_funcall,
@@ -327,7 +327,7 @@ module.exports = grammar({
       "(", choice($._expr, $.query), ")"
     ),
     _value: $ => choice(
-      "TRUE", "FALSE", "NULL",
+      k("TRUE"), k("FALSE"), k("NULL"),
       kwRule("INTERVAL", $.interval_value),
       // TODO - do we need unary +/- here,
       // or is it enough for it to be in `_prefix_expr` ?
@@ -355,7 +355,7 @@ module.exports = grammar({
     ),
     funcall: $ => seq(
       "(",
-      optional(choice("DISTINCT", "ALL")),
+      optional(choice(k("DISTINCT"), k("ALL"))),
       // TODO: ban `DISTINCT *`
       optional($.args),
       ")",
@@ -363,32 +363,32 @@ module.exports = grammar({
       optional($.window_spec),      
     ),
     filter: $ => seq(
-      "FILTER", "(", "WHERE", $._expr, ")"
+      k("FILTER"), "(", k("WHERE"), $._expr, ")"
     ),
     order_by_expr: $ => seq(
       $._expr,
-      optional(choice("ASC", "DESC")),
-      optional(seq("NULLS", choice("FIRST", "LAST"))),
+      optional(choice(k("ASC"), k("DESC"))),
+      optional(seq(k("NULLS"), choice(k("FIRST"), k("LAST")))),
     ),
     window_spec: $ => seq(      
-      "OVER", "(",
-      optional(seq("PARTITION", "BY", sepBy(",", $._expr))),
-      optional(seq("ORDER", "BY", sepBy(",", $.order_by_expr))),
+      k("OVER"), "(",
+      optional(seq(k("PARTITION"), k("BY"), sepBy(",", $._expr))),
+      optional(seq(k("ORDER"), k("BY"), sepBy(",", $.order_by_expr))),
       optional($.window_frame),
       ")"
     ),
     window_frame: $ => seq(
-      choice("ROWS", "RANGE", "GROUPS"),
+      choice(k("ROWS"), k("RANGE"), k("GROUPS")),
       choice(
-        seq("BETWEEN", $.wf_bound, "AND", $.wf_bound),
+        seq(k("BETWEEN"), $.wf_bound, k("AND"), $.wf_bound),
         $.wf_bound,
       ),
     ),
     wf_bound: $ => choice(
-      seq("CURRENT", "ROW"),
+      seq(k("CURRENT"), k("ROW")),
       seq(
-        choice("UNBOUNDED", $.number),
-        choice("PRECEDING", "FOLLOWING")
+        choice(k("UNBOUNDED"), $.number),
+        choice(k("PRECEDING"), k("FOLLOWING"))
       ),
     ),
     kw_op: $ => "FAIL!kw_op",
@@ -421,15 +421,15 @@ module.exports = grammar({
     distinct: $ => "FAIL!distinct",
     query_tail: $ => "FAIL!query_tail",
     _ctes: $ => seq(
-      "WITH",
+      k("WITH"),
       choice(
-        field("WMR", seq("MUTUALLY", "RECURSIVE", sepBy(",", $.mut_rec_cte))),
+        field("WMR", seq(k("MUTUALLY"), k("RECURSIVE"), sepBy(",", $.mut_rec_cte))),
         sepBy(",", $.cte),
       )
     ),
     cte: $ => seq(
       alias($._bare_table_alias, $.table_alias),
-      "AS",
+      k("AS"),
       "(",
       $.query,
       ")",
@@ -476,33 +476,33 @@ module.exports = grammar({
     create_connection: $ => "FAIL!create_connection",
     create_materialized_view: $ => "FAIL!create_materialized_view",
     create_view: $ => seq(
-      "CREATE",
-      optional(seq("OR", "REPLACE")),
-      optional(choice("TEMP", "TEMPORARY")),
-      "VIEW",
+      k("CREATE"),
+      optional(seq(k("OR"), k("REPLACE"))),
+      optional(choice(k("TEMP"), k("TEMPORARY"))),
+      k("VIEW"),
       $.view_definition,
     ),
     view_definition: $ => seq(
       $.object_name,
       optional($.parenthesized_column_list),
-      "AS",
+      k("AS"),
       $.query,
     ),
     discard: $ => "FAIL!discard",
     drop: $ => "FAIL!drop",
     delete: $ => "FAIL!delete",
     insert: $ => seq(
-      "INSERT", "INTO",
+      k("INSERT"), k("INTO"),
       $.raw_name,
       optional($.parenthesized_column_list),
       choice(
-        seq("DEFAULT", "VALUES"),
+        seq(k("DEFAULT"), k("VALUES")),
         $.query,
       ),
       optional($.returning),
     ),
     returning: $ => seq(
-      "RETURNING",
+      k("RETURNING"),
       sepBy1(",", $.select_item),
     ),
     update: $ => "FAIL!update",
@@ -531,40 +531,40 @@ module.exports = grammar({
       ),
     ),
     grant_privileges: $ => seq(
-      "GRANT",
+      k("GRANT"),
       $.priv_spec,
-      "ON",
+      k("ON"),
       $.grant_target_spec,
-      "TO",
+      k("TO"),
       sepBy1(",", $.role_spec),
     ),
     priv_spec: $ => choice(
-      seq("ALL", optional("PRIVILEGES")),
-      sepBy1(",", choice("INSERT", "SELECT", "UPDATE", "DELETE", "USAGE", "CREATE", "CREATEROLE", "CREATEDB", "CREATECLUSTER")),
+      seq(k("ALL"), optional(k("PRIVILEGES"))),
+      sepBy1(",", choice(k("INSERT"), k("SELECT"), k("UPDATE"), k("DELETE"), k("USAGE"), k("CREATE"), k("CREATEROLE"), k("CREATEDB"), k("CREATECLUSTER"))),
     ),
     role_spec: $ => seq(
-      optional("GROUP"),
+      optional(k("GROUP")),
       $.identifier,
     ),
     grant_target_spec: $ => choice(
-      "SYSTEM",
+      k("SYSTEM"),
       $.grant_all,
       $.grant_non_all,
     ),
     grant_all: $ => seq(
-      "ALL",
-      choice("TABLES", "TYPES", "CLUSTERS", "SECRETS", "CONNECTIONS", "DATABASES", "SCHEMAS"),
+      k("ALL"),
+      choice(k("TABLES"), k("TYPES"), k("CLUSTERS"), k("SECRETS"), k("CONNECTIONS"), k("DATABASES"), k("SCHEMAS")),
       optional($.grant_all_in),
     ),
     grant_all_in: $ => seq(
-      "IN",
+      k("IN"),
       choice(
-        seq("DATABASE", sepBy1(",", $.identifier)),
-        seq("SCHEMA", sepBy1(",", $.object_name)),
+        seq(k("DATABASE"), sepBy1(",", $.identifier)),
+        seq(k("SCHEMA"), sepBy1(",", $.object_name)),
       ),
     ),
     grant_non_all: $ => seq(
-      optional(choice("TABLE", "TYPE", "CLUSTER", "SECRET", "CONNECTION", "DATABASE", "SCHEMA")),
+      optional(choice(k("TABLE"), k("TYPE"), k("CLUSTER"), k("SECRET"), k("CONNECTION"), k("DATABASE"), k("SCHEMA"))),
       sepBy1(",", $.object_name),
     ),
     grant_role: $ => "FAIL!grant_role",
@@ -579,6 +579,17 @@ function sepBy(sep, rule) {
   return optional(sepBy1(sep, rule));
 }
 
+// tree-sitter doesn't yet support the /i flag
+// (though there's an unreleased version that does...)
+// so we need to use this instead.
+function k(kw) {
+  let r = '';
+  for (let ch of kw) {
+    r += ('[' + ch.toLowerCase() + ch.toUpperCase() + ']');
+  }
+  return new RegExp(r);
+}
+
 function kwRule(kw, rule) {
-  return field(kw.toLowerCase(), seq(kw, rule));
+  return field(kw.toLowerCase(), seq(k(kw), rule));
 }
