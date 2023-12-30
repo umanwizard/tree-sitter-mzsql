@@ -36,7 +36,7 @@ module.exports = grammar({
     $.other_op,
   ],
   rules: {
-    source_file: $ => sepBy(';', optional($.statement)),
+    source_file: $ => optional(sepBy1(';', optional($.statement))),
     statement: $ => choice(
       seq($.query, optional($.as_of)),
       $._create,
@@ -113,11 +113,12 @@ module.exports = grammar({
         k("ALL"),
         seq(k("DISTINCT"), $.distinct),
       )),
-      sepBy(",", $.select_item),
+      optional(sepBy1(",", $.select_item)),
       optional(seq(k("FROM"), sepBy1(",", $.table_and_joins))),
       optional(seq(k("WHERE"), $._expr)),
-      optional(seq(k("GROUP"), k("BY"), sepBy(",", $._expr))),
-      optional(seq(k("OPTIONS"), "(", sepBy(",", $.select_option), ")"))
+      optional(seq(k("GROUP"), k("BY"), sepBy1(",", $._expr))),
+      optional(seq(k("HAVING"), $._expr)),
+      optional(seq(k("OPTIONS"), "(", sepBy1(",", $.select_option), ")"))
     ),
     select_item: $ => choice(
       alias("*", $.wildcard),
@@ -216,7 +217,7 @@ module.exports = grammar({
     object_name: $ => sepBy1(".", $.identifier),
     parenthesized_column_list: $ => seq(
       "(",
-      sepBy(",", $.identifier),
+      sepBy1(",", $.identifier),
       ")",
     ),
     _expr: $ => choice(
@@ -367,8 +368,8 @@ module.exports = grammar({
     ),
     window_spec: $ => seq(      
       k("OVER"), "(",
-      optional(seq(k("PARTITION"), k("BY"), sepBy(",", $._expr))),
-      optional(seq(k("ORDER"), k("BY"), sepBy(",", $.order_by_expr))),
+      optional(seq(k("PARTITION"), k("BY"), sepBy1(",", $._expr))),
+      optional(seq(k("ORDER"), k("BY"), sepBy1(",", $.order_by_expr))),
       optional($.window_frame),
       ")"
     ),
@@ -432,7 +433,7 @@ module.exports = grammar({
             )),
             sepBy1(",", $.mut_rec_cte)),
           $.wmr),
-        sepBy(",", $.cte),
+        sepBy1(",", $.cte),
       )
     ),
     cte: $ => seq(
@@ -514,8 +515,8 @@ module.exports = grammar({
     ),
     columns_and_constraints: $ => seq(
       "(",
-      // sepBy, rather than sepBy1, is a Postgres extension
-      sepBy(",", choice($.constraint, $.column)),
+      // optionality is a Postgres extension
+      optional(sepBy1(",", choice($.constraint, $.column))),
       ")",
     ),
     constraint: $ => seq(
@@ -710,10 +711,6 @@ module.exports = grammar({
 
 function sepBy1(sep, rule) {
   return seq(rule, repeat(seq(sep, rule)));
-}
-
-function sepBy(sep, rule) {
-  return optional(sepBy1(sep, rule));
 }
 
 // tree-sitter doesn't yet support the /i flag
